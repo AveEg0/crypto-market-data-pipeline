@@ -1,0 +1,8 @@
+.venv/
+.idea/
+data/*.csv
+*.egg-info/
+__pychache__/
+.pytest_cashe/
+.ruff_cashe/
+.env
