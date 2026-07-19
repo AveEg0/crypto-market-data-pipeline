@@ -2,7 +2,7 @@
 .idea/
 data/*.csv
 *.egg-info/
-__pychache__/
-.pytest_cashe/
-.ruff_cashe/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
 .env
