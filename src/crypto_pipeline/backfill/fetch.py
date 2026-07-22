@@ -15,12 +15,12 @@ SLEEP_TIME = 62
 MIN_IN_EPOCH = 60_000
 
 
-def fetch_range(symbol: str, start: datetime, end: datetime) -> list[Candle]:
+def fetch_range(client: httpx.Client, symbol: str, start: datetime, end: datetime) -> list[Candle]:
     start_ms = int(start.timestamp() * 1000)
-    last_complete_ms = (int(end.timestamp() * 1000) // MIN_IN_EPOCH) * MIN_IN_EPOCH - MIN_IN_EPOCH
+    last_complete_ms = last_complete_minute_ms(end)
     candles = []
     while True:
-        page = fetch_klines(symbol, start_ms, last_complete_ms)
+        page = fetch_klines(client, symbol, start_ms, last_complete_ms)
         if not page:
             break
         candles.extend(page)
@@ -33,7 +33,7 @@ def fetch_range(symbol: str, start: datetime, end: datetime) -> list[Candle]:
 
 
 def fetch_klines(
-    symbol: str, start_ms: int, end_ms: int | None, limit: int = QUERY_LIMIT
+    client: httpx.Client, symbol: str, start_ms: int, end_ms: int | None, limit: int = QUERY_LIMIT
 ) -> list[list]:
     params = {
         "symbol": symbol,
@@ -43,11 +43,11 @@ def fetch_klines(
     }
     if end_ms is not None:
         params["endTime"] = end_ms
-    response = httpx.get(BASE_URL, params=params, timeout=TIMEOUT)
+    response = client.get(BASE_URL, params=params)
     response.raise_for_status()
-    weight = response.headers[IP_USED_WEIGHT_HEADER]
+    weight = response.headers.get(IP_USED_WEIGHT_HEADER)
     print(f"LOG INFO: current weight = {weight}")
-    if int(weight) / BINANCE_IP_WEIGHT_LIMIT >= 0.9:
+    if weight and int(weight) / BINANCE_IP_WEIGHT_LIMIT >= 0.9:
         time.sleep(SLEEP_TIME)
     data = response.json()
     return data
@@ -65,3 +65,12 @@ def parse_kline(symbol: str, raw: list) -> Candle:
         volume=Decimal(raw[5]),
     )
     return candle
+
+
+# function is required for storing ONLY finalized candles
+def last_complete_minute_ms(now: datetime) -> int:
+    return (int(now.timestamp() * 1000) // MIN_IN_EPOCH) * MIN_IN_EPOCH - MIN_IN_EPOCH
+
+
+def make_client() -> httpx.Client:
+    return httpx.Client(timeout=TIMEOUT)

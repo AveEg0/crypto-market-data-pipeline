@@ -4,8 +4,7 @@ from decimal import Decimal
 import pytest
 
 from crypto_pipeline.backfill.fetch import parse_kline
-
-SYMBOL = "BTCUSDT"
+from tests.conftest import SYMBOL
 
 
 @pytest.fixture

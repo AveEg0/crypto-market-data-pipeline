@@ -4,7 +4,7 @@ import time
 from datetime import UTC, datetime, timedelta
 
 from crypto_pipeline.backfill.db import insert_candles
-from crypto_pipeline.backfill.fetch import fetch_range
+from crypto_pipeline.backfill.fetch import fetch_range, make_client
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,18 +62,19 @@ def main() -> int:
         return 2
     failures: list[tuple[str, Exception]] = []
     total_fetched = total_inserted = 0
-    for symbol in [s.upper() for s in args.symbol]:
-        try:
-            print(f"{symbol}: {start:%Y-%m-%d %H:%M} → {end:%Y-%m-%d %H:%M}")
-            time0_symbol = time.perf_counter()
-            candles = fetch_range(symbol, start, end)
-            total_fetched += len(candles)
-            if not args.dry_run:
-                total_inserted += insert_candles(candles)
-            print(f"time for {symbol}: {(time.perf_counter() - time0_symbol):.2f}s")
-        except Exception as e:
-            failures.append((symbol, e))
-            print(f"FAILED {symbol}: {type(e).__name__}: {e}")
+    with make_client() as client:
+        for symbol in [s.upper() for s in args.symbol]:
+            try:
+                print(f"{symbol}: {start:%Y-%m-%d %H:%M} → {end:%Y-%m-%d %H:%M}")
+                time0_symbol = time.perf_counter()
+                candles = fetch_range(client, symbol, start, end)
+                total_fetched += len(candles)
+                if not args.dry_run:
+                    total_inserted += insert_candles(candles)
+                print(f"time for {symbol}: {(time.perf_counter() - time0_symbol):.2f}s")
+            except Exception as e:
+                failures.append((symbol, e))
+                print(f"FAILED {symbol}: {type(e).__name__}: {e}")
     print(f"{total_fetched} fetched, {total_inserted} inserted")
     print(f"time performance = {(time.perf_counter() - time0):.2f}s")
     if failures:
