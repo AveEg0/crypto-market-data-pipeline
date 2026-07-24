@@ -47,4 +47,4 @@ def test_parse_ws_unfinished_kline(sample_raw_kline):
     msg = deepcopy(sample_raw_kline)
     msg["k"]["x"] = False
     with pytest.raises(ValueError, match="unfinished kline"):
-        parse_ws_kline(sample_raw_kline)
+        parse_ws_kline(msg)

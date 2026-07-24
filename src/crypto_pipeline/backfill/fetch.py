@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
+import structlog
 
 from crypto_pipeline.common.models import Candle
 
@@ -46,7 +47,8 @@ def fetch_klines(
     response = client.get(BASE_URL, params=params)
     response.raise_for_status()
     weight = response.headers.get(IP_USED_WEIGHT_HEADER)
-    print(f"LOG INFO: current weight = {weight}")
+    log = structlog.get_logger()
+    log.debug("binance_ip_wheight", weight=weight)
     if weight and int(weight) / BINANCE_IP_WEIGHT_LIMIT >= 0.9:
         time.sleep(SLEEP_TIME)
     data = response.json()

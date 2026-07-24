@@ -7,7 +7,7 @@ from crypto_pipeline.common.models import Candle
 
 
 def insert_candles(candles: list[Candle]) -> int:
-    with psycopg.connect(get_database_url()) as conn:
+    with psycopg.connect(get_database_url(), connect_timeout=5) as conn:
         with conn.cursor() as cur:
             start_count = cur.execute("SELECT COUNT(*) FROM candles_1m;").fetchone()[0]
             cur.execute("""
