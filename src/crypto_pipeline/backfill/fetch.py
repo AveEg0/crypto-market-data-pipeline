@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import httpx
 
-from crypto_pipeline.backfill.models import Candle
+from crypto_pipeline.common.models import Candle
 
 BASE_URL = "https://data-api.binance.vision/api/v3/klines"
 QUERY_LIMIT = 1000
@@ -17,7 +17,7 @@ MIN_IN_EPOCH = 60_000
 
 def fetch_range(client: httpx.Client, symbol: str, start: datetime, end: datetime) -> list[Candle]:
     start_ms = int(start.timestamp() * 1000)
-    last_complete_ms = last_complete_minute_ms(end)
+    last_complete_ms = last_complete_minute_ms(end)  # (now - 1m) - won't store incomplete candles
     candles = []
     while True:
         page = fetch_klines(client, symbol, start_ms, last_complete_ms)

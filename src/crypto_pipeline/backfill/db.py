@@ -2,8 +2,8 @@ from dataclasses import astuple
 
 import psycopg
 
-from crypto_pipeline.backfill.models import Candle
 from crypto_pipeline.common.config import get_database_url
+from crypto_pipeline.common.models import Candle
 
 
 def insert_candles(candles: list[Candle]) -> int:
