@@ -1,12 +1,16 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import structlog
+
 from crypto_pipeline.common.models import Candle
 
 
 def parse_ws_kline(msg: dict) -> Candle:
     kline = msg["k"]
     if not kline["x"]:
+        log = structlog.get_logger()
+        log.error("parse_failed", exc_info=True)
         raise ValueError(f"unfinished kline for {kline['s']} at {kline['t']}")
     candle = Candle(
         ts=datetime.fromtimestamp(kline["t"] / 1000, tz=UTC),

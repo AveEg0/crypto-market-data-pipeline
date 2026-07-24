@@ -1,5 +1,9 @@
+import asyncio
 import json
+import time
 
+import structlog
+from websockets import ConnectionClosed
 from websockets.asyncio.client import connect
 
 from crypto_pipeline.ingester.parse import parse_ws_kline
@@ -12,9 +16,11 @@ class BinanceIngester:
         self.symbols = [s.upper() for s in symbols]
         self.received = 0
         self.kept = 0
+        self.log = structlog.get_logger().bind(symbols=self.symbols)
 
     async def run(self) -> None:
-        await self._stream_klines()
+            await self._stream_klines()
+
 
     def _build_url(self) -> str:
         return (
@@ -24,16 +30,33 @@ class BinanceIngester:
         )
 
     async def _stream_klines(self) -> None:
-        async with connect(self._build_url()) as ws:
-            async for raw_msg in ws:
-                msg = json.loads(raw_msg)
-                event = msg["data"]
-                k = event["k"]
-                self.received += 1
-                if k["x"]:
-                    self.kept += 1
-                    candle = parse_ws_kline(event)
-                    print(
-                        f"candle kept: {candle.symbol}, open time: {candle.ts}, "
-                        f"close: {candle.close}\n received: {self.received}, kept: {self.kept}"
+        time0 = time.perf_counter()
+        try:
+            async with connect(self._build_url()) as ws:
+                self.log.info("ws_connected", symbols=self.symbols)
+                async for raw_msg in ws:
+                    msg = json.loads(raw_msg)
+                    event = msg["data"]
+                    k = event["k"]
+                    self.received += 1
+                    self.log.bind(symbol=k["s"]).debug(
+                        "kline_received", symbol=k["s"], is_closed=k["x"]
                     )
+                    if k["x"]:
+                        self.kept += 1
+                        candle = parse_ws_kline(event)
+                        self.log.info(
+                            "candle_kept", symbol=candle.symbol, ts=candle.ts, close=candle.close
+                        )
+        except asyncio.CancelledError:
+            self.log.info(
+                "stream_cancelled",
+                uptime_s=round(time.perf_counter() - time0, 1)
+            )
+            raise
+        except ConnectionClosed as exc:
+            self.log.warning(
+                "ws_disconnected",
+                reason=type(exc).__name__,
+                uptime_s=round(time.perf_counter() - time0, 1),
+            )
