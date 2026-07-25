@@ -2,12 +2,14 @@ import asyncio
 import json
 import random
 import time
+from datetime import datetime
 
 import structlog
 from websockets import ConnectionClosed
 from websockets.asyncio.client import connect
 
 from crypto_pipeline.backfill.db import insert_candles
+from crypto_pipeline.common.models import Candle
 from crypto_pipeline.ingester.parse import parse_ws_kline
 
 WS_BASE_URL = "wss://data-stream.binance.vision:443"
@@ -23,6 +25,8 @@ class BinanceIngester:
         self.received = 0
         self.kept = 0
         self.stored = 0
+        self._last_ts: dict[str, datetime] = {}
+        self._reconnected: dict[str, bool] = dict.fromkeys(self.symbols, False)
         self.log = structlog.get_logger().bind(symbols=self.symbols)
 
     async def run(self) -> None:
@@ -58,6 +62,7 @@ class BinanceIngester:
     async def _connect_and_stream(self) -> None:
         async with connect(self._build_url()) as ws:
             self.log.info("ws_connected", symbols=self.symbols)
+            self._reconnected = dict.fromkeys(self.symbols, True)
             while True:
                 async with asyncio.timeout(STALE_TIMEOUT_S):
                     raw_msg = await ws.recv()
@@ -73,10 +78,15 @@ class BinanceIngester:
             try:
                 candle = parse_ws_kline(event)
             except ValueError:
-                self.log.error("parse_ws_kline_failed", raw=event, exc_info=True)
+                self.log.error("candle_parse_failed", raw=event, exc_info=True)
+                return
+            if self._reconnected.get(candle.symbol):
+                self._detect_gap(candle)
+                self._reconnected[candle.symbol] = False
             try:
                 inserted = await asyncio.to_thread(insert_candles, [candle])
                 self.stored += inserted
+                self._last_ts[candle.symbol] = candle.ts
                 self.log.info(
                     "candle_stored",
                     symbol=candle.symbol,
@@ -86,3 +96,19 @@ class BinanceIngester:
                 )
             except Exception:  # noqa: BLE001 log error and continue
                 self.log.error("db_write_failed", symbol=candle.symbol, ts=candle.ts, exc_info=True)
+
+
+    def _detect_gap(self, candle: Candle) -> None:
+        last_ts = self._last_ts.get(candle.symbol)
+        if last_ts is None:
+            return
+        missing = int((candle.ts - last_ts).total_seconds() / 60) - 1
+        if missing <= 0:
+            return
+        self.log.warning(
+            "candle_gap_detected",
+            symbol=candle.symbol,
+            gap_from=last_ts,
+            gap_to=candle.ts,
+            missing_min=missing,
+        )
