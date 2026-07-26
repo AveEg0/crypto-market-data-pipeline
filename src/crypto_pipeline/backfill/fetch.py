@@ -1,11 +1,11 @@
 import time
-from datetime import UTC, datetime
-from decimal import Decimal
+from datetime import datetime
 
 import httpx
 import structlog
 
 from crypto_pipeline.common.models import Candle
+from crypto_pipeline.common.parse import parse_kline
 
 BASE_URL = "https://data-api.binance.vision/api/v3/klines"
 QUERY_LIMIT = 1000
@@ -53,20 +53,6 @@ def fetch_klines(
         time.sleep(SLEEP_TIME)
     data = response.json()
     return data
-
-
-def parse_kline(symbol: str, raw: list) -> Candle:
-    ts = datetime.fromtimestamp((raw[0] / 1000), tz=UTC)
-    candle = Candle(
-        symbol=symbol,
-        ts=ts,
-        open=Decimal(raw[1]),
-        high=Decimal(raw[2]),
-        low=Decimal(raw[3]),
-        close=Decimal(raw[4]),
-        volume=Decimal(raw[5]),
-    )
-    return candle
 
 
 # function is required for storing ONLY finalized candles

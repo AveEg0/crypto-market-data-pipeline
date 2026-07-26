@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from crypto_pipeline.ingester.parse import parse_ws_candle
+from crypto_pipeline.common.parse import parse_ws_candle
 
 
 @pytest.fixture

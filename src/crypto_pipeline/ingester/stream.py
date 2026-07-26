@@ -11,7 +11,7 @@ from websockets.asyncio.client import connect
 
 from crypto_pipeline.common.config import CANDLES_TOPIC, get_kafka_bootstrap
 from crypto_pipeline.common.models import Candle
-from crypto_pipeline.ingester.parse import candle_to_json, parse_ws_candle
+from crypto_pipeline.common.parse import candle_to_json, parse_ws_candle
 
 WS_BASE_URL = "wss://data-stream.binance.vision:443"
 BACKOFF_BASE_S = 5
