@@ -5,12 +5,13 @@ import time
 from datetime import datetime
 
 import structlog
+from aiokafka import AIOKafkaProducer
 from websockets import ConnectionClosed
 from websockets.asyncio.client import connect
 
-from crypto_pipeline.backfill.db import insert_candles
+from crypto_pipeline.common.config import CANDLES_TOPIC, get_kafka_bootstrap
 from crypto_pipeline.common.models import Candle
-from crypto_pipeline.ingester.parse import parse_ws_kline
+from crypto_pipeline.ingester.parse import candle_to_json, parse_ws_candle
 
 WS_BASE_URL = "wss://data-stream.binance.vision:443"
 BACKOFF_BASE_S = 5
@@ -24,33 +25,35 @@ class BinanceIngester:
         self.symbols = [s.upper() for s in symbols]
         self.received = 0
         self.kept = 0
-        self.stored = 0
+        self.published = 0
         self._last_ts: dict[str, datetime] = {}
         self._reconnected: dict[str, bool] = dict.fromkeys(self.symbols, False)
+        self._producer: AIOKafkaProducer | None = None
         self.log = structlog.get_logger().bind(symbols=self.symbols)
 
     async def run(self) -> None:
         delay = BACKOFF_BASE_S
-        try:
-            while True:
-                started = time.perf_counter()
-                try:
-                    await self._connect_and_stream()
-                except (ConnectionClosed, OSError, TimeoutError) as exc:
-                    uptime = time.perf_counter() - started
-                    if uptime >= HEALTHY_UPTIME_S:
-                        delay = BACKOFF_BASE_S
-                    self.log.warning(
-                        "ws_reconnect_scheduled",
-                        reason=type(exc).__name__,
-                        uptime_s=round(uptime, 1),
-                        delay_s=round(delay, 1),
-                    )
-                    await asyncio.sleep(delay * random.uniform(0.5, 1.5))
-                    delay = min(delay * 2, BACKOFF_MAX_S)
-        except asyncio.CancelledError:
-            self.log.info("stream_cancelled")
-            raise
+        async with AIOKafkaProducer(bootstrap_servers=get_kafka_bootstrap()) as self._producer:
+            try:
+                while True:
+                    started = time.perf_counter()
+                    try:
+                        await self._connect_and_stream()
+                    except (ConnectionClosed, OSError, TimeoutError) as exc:
+                        uptime = time.perf_counter() - started
+                        if uptime >= HEALTHY_UPTIME_S:
+                            delay = BACKOFF_BASE_S
+                        self.log.warning(
+                            "ws_reconnect_scheduled",
+                            reason=type(exc).__name__,
+                            uptime_s=round(uptime, 1),
+                            delay_s=round(delay, 1),
+                        )
+                        await asyncio.sleep(delay * random.uniform(0.5, 1.5))
+                        delay = min(delay * 2, BACKOFF_MAX_S)
+            except asyncio.CancelledError:
+                self.log.info("stream_cancelled")
+                raise
 
     def _build_url(self) -> str:
         return (
@@ -72,11 +75,11 @@ class BinanceIngester:
         event = msg["data"]
         k = event["k"]
         self.received += 1
-        self.log.bind(symbol=k["s"]).debug("kline_received", symbol=k["s"], is_closed=k["x"])
+        self.log.bind(symbol=k["s"]).debug("candle_received", symbol=k["s"], is_closed=k["x"])
         if k["x"]:
             self.kept += 1
             try:
-                candle = parse_ws_kline(event)
+                candle = parse_ws_candle(event)
             except ValueError:
                 self.log.error("candle_parse_failed", raw=event, exc_info=True)
                 return
@@ -84,19 +87,25 @@ class BinanceIngester:
                 self._detect_gap(candle)
                 self._reconnected[candle.symbol] = False
             try:
-                inserted = await asyncio.to_thread(insert_candles, [candle])
-                self.stored += inserted
+                meta = await self._producer.send_and_wait(
+                    topic=CANDLES_TOPIC,
+                    value=candle_to_json(candle),
+                    key=candle.symbol.encode(),
+                )
+                self.published += 1
                 self._last_ts[candle.symbol] = candle.ts
                 self.log.info(
-                    "candle_stored",
+                    "candle_published",
                     symbol=candle.symbol,
                     ts=candle.ts,
                     close=candle.close,
-                    inserted=inserted,
+                    partition=meta.partition,
+                    offset=meta.offset,
                 )
             except Exception:  # noqa: BLE001 log error and continue
-                self.log.error("db_write_failed", symbol=candle.symbol, ts=candle.ts, exc_info=True)
-
+                self.log.error(
+                    "kafka_publish_failed", symbol=candle.symbol, ts=candle.ts, exc_info=True
+                )
 
     def _detect_gap(self, candle: Candle) -> None:
         last_ts = self._last_ts.get(candle.symbol)

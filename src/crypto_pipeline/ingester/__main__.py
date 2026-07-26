@@ -24,7 +24,7 @@ def main() -> int:
             "ingester_stopped",
             received=ingester.received,
             kept=ingester.kept,
-            stored=ingester.stored,
+            published=ingester.published,
             uptime_s=round(time.perf_counter() - time0, 1),
         )
     return 0

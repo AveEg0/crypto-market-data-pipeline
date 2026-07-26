@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from crypto_pipeline.ingester.parse import parse_ws_kline
+from crypto_pipeline.ingester.parse import parse_ws_candle
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def sample_raw_kline():
 
 
 def test_parse_ws_kline(sample_raw_kline):
-    candle = parse_ws_kline(sample_raw_kline)
+    candle = parse_ws_candle(sample_raw_kline)
     assert candle.symbol == "BTCUSDT"
     assert candle.ts == datetime(2026, 7, 11, 3, 56, tzinfo=UTC)
     assert candle.open == Decimal("64183.90000000")
@@ -47,4 +47,4 @@ def test_parse_ws_unfinished_kline(sample_raw_kline):
     msg = deepcopy(sample_raw_kline)
     msg["k"]["x"] = False
     with pytest.raises(ValueError, match="unfinished kline"):
-        parse_ws_kline(msg)
+        parse_ws_candle(msg)
