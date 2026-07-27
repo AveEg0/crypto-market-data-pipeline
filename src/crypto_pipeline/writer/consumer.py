@@ -5,9 +5,9 @@ from decimal import InvalidOperation
 import structlog
 from aiokafka import AIOKafkaConsumer
 
-from crypto_pipeline.backfill.db import insert_candles
 from crypto_pipeline.common.config import CANDLES_TOPIC, get_kafka_bootstrap
 from crypto_pipeline.common.parse import parse_kafka_candle
+from crypto_pipeline.writer.db import insert_candles
 
 RETRY_DELAY_S = 5
 

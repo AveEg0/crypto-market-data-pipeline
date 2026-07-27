@@ -2,13 +2,14 @@ import asyncio
 import json
 import random
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import structlog
 from aiokafka import AIOKafkaProducer
 from websockets import ConnectionClosed
 from websockets.asyncio.client import connect
 
+from crypto_pipeline.backfill.fetch import fetch_range, make_client
 from crypto_pipeline.common.config import CANDLES_TOPIC, get_kafka_bootstrap
 from crypto_pipeline.common.models import Candle
 from crypto_pipeline.common.parse import candle_to_json, parse_ws_candle
@@ -84,30 +85,11 @@ class BinanceIngester:
                 self.log.error("candle_parse_failed", raw=event, exc_info=True)
                 return
             if self._reconnected.get(candle.symbol):
-                self._detect_gap(candle)
+                await self._heal_gap(candle)
                 self._reconnected[candle.symbol] = False
-            try:
-                meta = await self._producer.send_and_wait(
-                    topic=CANDLES_TOPIC,
-                    value=candle_to_json(candle),
-                    key=candle.symbol.encode(),
-                )
-                self.published += 1
-                self._last_ts[candle.symbol] = candle.ts
-                self.log.info(
-                    "candle_published",
-                    symbol=candle.symbol,
-                    ts=candle.ts,
-                    close=candle.close,
-                    partition=meta.partition,
-                    offset=meta.offset,
-                )
-            except Exception:  # noqa: BLE001 log error and continue
-                self.log.error(
-                    "kafka_publish_failed", symbol=candle.symbol, ts=candle.ts, exc_info=True
-                )
+            await self._publish(candle)
 
-    def _detect_gap(self, candle: Candle) -> None:
+    async def _heal_gap(self, candle: Candle) -> None:
         last_ts = self._last_ts.get(candle.symbol)
         if last_ts is None:
             return
@@ -121,3 +103,55 @@ class BinanceIngester:
             gap_to=candle.ts,
             missing_min=missing,
         )
+        with make_client() as client:
+            try:
+                candles = await asyncio.to_thread(
+                    fetch_range,
+                    client,
+                    candle.symbol,
+                    last_ts + timedelta(minutes=1),
+                    candle.ts,
+                )
+                for c in candles:
+                    await self._publish(c)
+                self.log.info(
+                    "candle_gap_healed",
+                    symbol=candle.symbol,
+                    missing_min=missing,
+                    start=last_ts,
+                    end=candle.ts,
+                )
+                self.kept += len(candles)
+            except Exception:  # noqa: BLE001 log error and continue
+                self.log.error(
+                    "heal_gap_failed",
+                    symbol=candle.symbol,
+                    missing_min=missing,
+                    start=last_ts,
+                    end=candle.ts,
+                    exc_info=True,
+                )
+
+    async def _publish(self, candle: Candle) -> None:
+        try:
+            meta = await self._producer.send_and_wait(
+                topic=CANDLES_TOPIC,
+                value=candle_to_json(candle),
+                key=candle.symbol.encode(),
+            )
+            self.published += 1
+            last = self._last_ts.get(candle.symbol)
+            if last is None or last < candle.ts:
+                self._last_ts[candle.symbol] = candle.ts
+            self.log.info(
+                "candle_published",
+                symbol=candle.symbol,
+                ts=candle.ts,
+                close=candle.close,
+                partition=meta.partition,
+                offset=meta.offset,
+            )
+        except Exception:  # noqa: BLE001 log error and continue
+            self.log.error(
+                "kafka_publish_failed", symbol=candle.symbol, ts=candle.ts, exc_info=True
+            )

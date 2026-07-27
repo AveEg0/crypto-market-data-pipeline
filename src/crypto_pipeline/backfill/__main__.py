@@ -5,9 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 import structlog
 
-from crypto_pipeline.backfill.db import insert_candles
 from crypto_pipeline.backfill.fetch import fetch_range, make_client
 from crypto_pipeline.common.logging import configure_logging
+from crypto_pipeline.writer.db import insert_candles
 
 
 def parse_args() -> argparse.Namespace:
