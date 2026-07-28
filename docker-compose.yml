@@ -1,4 +1,42 @@
 services:
+  ingester:
+    build: .
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP: redpanda:9092
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    command: ["python", "-m", "crypto_pipeline.ingester", "--symbol", "BTCUSDT", "ETHUSDT"]
+
+  writer:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@crypto-db:5432/${POSTGRES_DB}
+      KAFKA_BOOTSTRAP: redpanda:9092
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      crypto-db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "crypto_pipeline.writer"]
+
+  migrate:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@crypto-db:5432/${POSTGRES_DB}
+    depends_on:
+      crypto-db:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+
   crypto-db:
     image: timescale/timescaledb:latest-pg16
     container_name: crypto-db

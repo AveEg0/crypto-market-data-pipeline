@@ -1,7 +1,9 @@
 import asyncio
 import json
 import random
+import signal
 import time
+from asyncio import CancelledError
 from datetime import datetime, timedelta
 
 import structlog
@@ -33,6 +35,18 @@ class BinanceIngester:
         self.log = structlog.get_logger().bind(symbols=self.symbols)
 
     async def run(self) -> None:
+        loop = asyncio.get_running_loop()
+        task = asyncio.current_task(loop=loop)
+
+        def _request_stop() -> None:
+            self.log.info("ingester_request_stop")
+            task.cancel()
+
+        try:
+            loop.add_signal_handler(signal.SIGTERM, _request_stop)
+            loop.add_signal_handler(signal.SIGINT, _request_stop)
+        except NotImplementedError:
+            pass
         delay = BACKOFF_BASE_S
         async with AIOKafkaProducer(bootstrap_servers=get_kafka_bootstrap()) as self._producer:
             try:
@@ -40,6 +54,8 @@ class BinanceIngester:
                     started = time.perf_counter()
                     try:
                         await self._connect_and_stream()
+                    except CancelledError:
+                        raise
                     except (ConnectionClosed, OSError, TimeoutError) as exc:
                         uptime = time.perf_counter() - started
                         if uptime >= HEALTHY_UPTIME_S:
@@ -52,7 +68,7 @@ class BinanceIngester:
                         )
                         await asyncio.sleep(delay * random.uniform(0.5, 1.5))
                         delay = min(delay * 2, BACKOFF_MAX_S)
-            except asyncio.CancelledError:
+            except CancelledError:
                 self.log.info("stream_cancelled")
                 raise
 
@@ -64,13 +80,28 @@ class BinanceIngester:
         )
 
     async def _connect_and_stream(self) -> None:
-        async with connect(self._build_url()) as ws:
+        ws = await connect(self._build_url())
+        try:
             self.log.info("ws_connected", symbols=self.symbols)
             self._reconnected = dict.fromkeys(self.symbols, True)
             while True:
-                async with asyncio.timeout(STALE_TIMEOUT_S):
-                    raw_msg = await ws.recv()
+                try:
+                    async with asyncio.timeout(STALE_TIMEOUT_S):
+                        raw_msg = await ws.recv()
+                except TimeoutError:
+                    self.log.info("run_caught_timeout")
+                    raise
                 await self._handle_msg(json.loads(raw_msg))
+        except CancelledError:
+            raise
+        except (ConnectionClosed, OSError, TimeoutError):
+            try:
+                async with asyncio.timeout(2):
+                    await ws.close()
+                    self.log.info("ws_closed_for_reconnect")
+            except (TimeoutError, ConnectionClosed, OSError):
+                pass
+            raise
 
     async def _handle_msg(self, msg: dict) -> None:
         event = msg["data"]

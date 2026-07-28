@@ -1,5 +1,6 @@
 import asyncio
 import json
+import signal
 from decimal import InvalidOperation
 
 import structlog
@@ -19,6 +20,18 @@ class WriterConsumer:
         self.log = structlog.get_logger()
 
     async def run(self) -> None:
+        loop = asyncio.get_running_loop()
+        task = asyncio.current_task(loop=loop)
+
+        def _request_stop() -> None:
+            self.log.info("writer_request_stop")
+            task.cancel()
+
+        try:
+            loop.add_signal_handler(signal.SIGTERM, _request_stop)
+            loop.add_signal_handler(signal.SIGINT, _request_stop)
+        except NotImplementedError:
+            pass
         async with AIOKafkaConsumer(
             CANDLES_TOPIC,
             bootstrap_servers=get_kafka_bootstrap(),

@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import sys
 import time
+from asyncio import CancelledError
 
 import structlog
 
@@ -17,7 +18,7 @@ def main() -> int:
     ingester = BinanceIngester(args.symbol)
     try:
         asyncio.run(ingester.run())
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, CancelledError):
         log.info("interrupt_received")
     finally:
         log.info(

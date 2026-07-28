@@ -1,7 +1,6 @@
 [project]
 name = "crypto-pipeline"
 version = "0.1.0"
-readme = "README.md"
 authors = [
     { name = "Oleksandr Karmazyn", email = "karmazino548@gmail.com" }
 ]
