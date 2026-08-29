@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 
 from crypto_pipeline.backfill.fetch import parse_kline
-from tests.conftest import SYMBOL
+from tests.conf_test import SYMBOL
 
 
 @pytest.fixture

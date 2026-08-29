@@ -9,6 +9,7 @@ dependencies = [
     "aiokafka>=0.14.0",
     "alembic>=1.18.5",
     "httpx>=0.28.1",
+    "pandas>=3.0.5",
     "psycopg[binary]>=3.3.4",
     "structlog>=26.1.0",
     "websockets>=16.1.1",

@@ -13,7 +13,7 @@ from crypto_pipeline.backfill.fetch import (
     last_complete_minute_ms,
     make_client,
 )
-from tests.conftest import SYMBOL, generate_candles_1m_page
+from tests.conf_test import SYMBOL, generate_candles_1m_page
 
 
 @pytest.mark.parametrize(
