@@ -11,9 +11,17 @@ from crypto_pipeline.common.models import Candle
 from tests.conf_test import SYMBOL
 
 
-def make_sample_candle(ts: datetime, *, open=Decimal("64183.9"), high=Decimal("64190.0"),
-                low=Decimal("64173.77"), close=Decimal("64173.78"), volume=Decimal("6")) -> Candle:
+def make_sample_candle(
+    ts: datetime,
+    *,
+    open=Decimal("64183.9"),
+    high=Decimal("64190.0"),
+    low=Decimal("64173.77"),
+    close=Decimal("64173.78"),
+    volume=Decimal("6"),
+) -> Candle:
     return Candle(SYMBOL, ts, open, high, low, close, volume)
+
 
 @pytest.fixture
 def healthy_sample_candles():
