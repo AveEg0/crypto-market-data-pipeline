@@ -12,10 +12,14 @@ class Column(StrEnum):
     HIGH = "high"
     LOW = "low"
     VOLUME = "volume"
+    CASH = "cash"
+    QUANTITY = "quantity"
 
 
 INDEX = "ts"
 PRICE_COLUMNS = [Column.OPEN, Column.HIGH, Column.LOW, Column.CLOSE]
+FEE_DEFAULT = Decimal("0.001")
+SLIPPAGE_DEFAULT = Decimal("0.001")
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,3 +53,21 @@ class PreparedData:
     prices: dict[datetime, Decimal]
     final_close: Decimal
     info: FrameInfo
+
+
+@dataclass(frozen=True, slots=True)
+class TradeRecord:
+    entry_ts: datetime
+    exit_ts: datetime | None
+    entry_price: Decimal
+    exit_price: Decimal | None
+    fees: Decimal
+    pnl: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
+class SimulationResult:
+    trades: list[TradeRecord]
+    equity_curve: pd.Series
+    final_cash: Decimal
+    total_fees: Decimal
