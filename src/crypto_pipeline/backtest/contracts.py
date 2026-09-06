@@ -20,6 +20,7 @@ INDEX = "ts"
 PRICE_COLUMNS = [Column.OPEN, Column.HIGH, Column.LOW, Column.CLOSE]
 FEE_DEFAULT = Decimal("0.001")
 SLIPPAGE_DEFAULT = Decimal("0.001")
+PERIODS_PER_YEAR_FOR_MINUTE_CANDLE = 525600
 
 
 @dataclass(frozen=True, slots=True)

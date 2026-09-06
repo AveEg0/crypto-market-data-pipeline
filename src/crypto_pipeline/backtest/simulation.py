@@ -37,7 +37,7 @@ def simulate(
     is_open = False
     for ts, change in changes.items():
         if change == 1:
-            quantity, entry_fee = _execute_buy(cash, prices[ts], slippage, fee_rate)
+            quantity, entry_fee = execute_buy(cash, prices[ts], slippage, fee_rate)
             entry_ts = ts
             entry_price = prices[ts]
             cash_at_entry = cash
@@ -46,7 +46,7 @@ def simulate(
             total_fees += entry_fee
             curve_list.append((ts, cash, quantity))
         elif change == -1:
-            cash, fee = _execute_sell(quantity, prices[ts], slippage, fee_rate)
+            cash, fee = execute_sell(quantity, prices[ts], slippage, fee_rate)
             pnl = cash - cash_at_entry
             fees = entry_fee + fee
             total_fees += fee
@@ -94,7 +94,7 @@ def simulate(
     )
 
 
-def _execute_buy(
+def execute_buy(
     cash: Decimal, price: Decimal, slippage: Decimal, fee_rate: Decimal
 ) -> tuple[Decimal, Decimal]:
     buy_fill = price * (1 + slippage)
@@ -104,7 +104,7 @@ def _execute_buy(
     return quantity, fee
 
 
-def _execute_sell(
+def execute_sell(
     quantity: Decimal, price: Decimal, slippage: Decimal, fee_rate: Decimal
 ) -> tuple[Decimal, Decimal]:
     sell_fill = price * (1 - slippage)
