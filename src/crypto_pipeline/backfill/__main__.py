@@ -1,12 +1,12 @@
 import argparse
 import sys
 import time
-from datetime import UTC, datetime, timedelta
 
 import structlog
 
 from crypto_pipeline.backfill.fetch import fetch_range, make_client
 from crypto_pipeline.common.logging import configure_logging
+from crypto_pipeline.common.parse import resolve_range
 from crypto_pipeline.writer.db import insert_candles
 
 
@@ -33,27 +33,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="dry run")
     parser.add_argument("--log-json", action="store_true")
     return parser.parse_args()
-
-
-def resolve_range(args: argparse.Namespace) -> tuple[datetime, datetime]:
-    end = _parse_iso(args.end) if args.end else datetime.now(UTC)
-    if args.start:
-        start = _parse_iso(args.start)
-    else:
-        days = args.days
-        start = end - timedelta(days=days)
-    if start >= end:
-        raise ValueError(f"start {start} and end {end} are not valid: start >= end")
-    return start, end
-
-
-def _parse_iso(value: str) -> datetime:
-    dt = datetime.fromisoformat(value)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    else:
-        dt = dt.astimezone(UTC)
-    return dt
 
 
 def main() -> int:

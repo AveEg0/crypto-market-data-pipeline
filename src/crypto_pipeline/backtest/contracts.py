@@ -21,6 +21,17 @@ PRICE_COLUMNS = [Column.OPEN, Column.HIGH, Column.LOW, Column.CLOSE]
 FEE_DEFAULT = Decimal("0.001")
 SLIPPAGE_DEFAULT = Decimal("0.001")
 PERIODS_PER_YEAR_FOR_MINUTE_CANDLE = 525600
+DEFAULT_GRID = [
+    (60, 480),
+    (60, 1440),
+    (240, 1440),
+    (240, 2880),
+    (500, 2000),
+    (500, 7200),
+    (1440, 7200),
+    (1440, 20160),
+]
+MIN_TRADES_FOR_ELIGIBILITY = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,3 +83,12 @@ class SimulationResult:
     equity_curve: pd.Series
     final_cash: Decimal
     total_fees: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class SweepResult:
+    fast_window: int
+    slow_window: int
+    in_sample: BacktestMetrics
+    out_of_sample: BacktestMetrics
+    ranked_in_sample: list[tuple[int, int, BacktestMetrics]]

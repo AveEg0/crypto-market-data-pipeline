@@ -15,6 +15,7 @@ from crypto_pipeline.backtest.simulation import execute_buy, execute_sell
 def total_return(initial: float, final: float) -> float:
     return float(final / initial) - 1
 
+
 def max_drawdown(equity: pd.Series) -> float | None:
     if equity.empty:
         return None
@@ -22,7 +23,8 @@ def max_drawdown(equity: pd.Series) -> float | None:
     drawdown = (equity - peak) / peak
     return float(drawdown.min())
 
-def sharpe(equity: pd.Series, periods_per_year: int) -> float| None:
+
+def sharpe(equity: pd.Series, periods_per_year: int) -> float | None:
     returns = equity.pct_change().dropna()
     sd = returns.std()
     if returns.empty or pd.isna(sd) or sd == 0:
@@ -37,9 +39,13 @@ def win_rate(trades: list[TradeRecord]) -> float | None:
     wins = sum(1 for t in closed if t.pnl > 0)
     return wins / len(closed)
 
-def buy_and_hold(prepared_data: PreparedData,
-                 initial_capital: Decimal, fee_rate: Decimal = FEE_DEFAULT,
-                 slippage: Decimal = SLIPPAGE_DEFAULT) -> TradeRecord:
+
+def buy_and_hold(
+    prepared_data: PreparedData,
+    initial_capital: Decimal,
+    fee_rate: Decimal = FEE_DEFAULT,
+    slippage: Decimal = SLIPPAGE_DEFAULT,
+) -> TradeRecord:
     df = prepared_data.df
     prices = prepared_data.prices
     final_close = prepared_data.final_close
@@ -51,5 +57,5 @@ def buy_and_hold(prepared_data: PreparedData,
         exit_ts=df.index[-1],
         exit_price=final_close,
         fees=entry_fee + fee,
-        pnl=cash - initial_capital
+        pnl=cash - initial_capital,
     )
