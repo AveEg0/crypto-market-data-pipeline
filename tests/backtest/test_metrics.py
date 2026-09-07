@@ -48,13 +48,18 @@ def test_max_drawdown_monotonic_rise():
 
 
 def test_sharpe(sharpe_curve):
-    assert sharpe(sharpe_curve,
-                  periods_per_year=PERIODS_PER_YEAR_FOR_MINUTE_CANDLE) == pytest.approx(299.2161116)
+    assert sharpe(
+        sharpe_curve, periods_per_year=PERIODS_PER_YEAR_FOR_MINUTE_CANDLE
+    ) == pytest.approx(299.2161116)
 
 
 def test_sharpe_flat_equity_is_none():
-    assert sharpe(pd.Series([100.0, 100.0, 100.0]),
-                  periods_per_year=PERIODS_PER_YEAR_FOR_MINUTE_CANDLE) is None
+    assert (
+        sharpe(
+            pd.Series([100.0, 100.0, 100.0]), periods_per_year=PERIODS_PER_YEAR_FOR_MINUTE_CANDLE
+        )
+        is None
+    )
 
 
 def test_win_rate_excludes_open_trades():

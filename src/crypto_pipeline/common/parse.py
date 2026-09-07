@@ -1,5 +1,6 @@
+import argparse
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from crypto_pipeline.common.models import Candle
@@ -61,3 +62,24 @@ def parse_kafka_candle(raw: bytes) -> Candle:
         volume=Decimal(kline["volume"]),
     )
     return candle
+
+
+def resolve_range(args: argparse.Namespace) -> tuple[datetime, datetime]:
+    end = _parse_iso(args.end) if args.end else datetime.now(UTC)
+    if args.start:
+        start = _parse_iso(args.start)
+    else:
+        days = args.days
+        start = end - timedelta(days=days)
+    if start >= end:
+        raise ValueError(f"start {start} and end {end} are not valid: start >= end")
+    return start, end
+
+
+def _parse_iso(value: str) -> datetime:
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    else:
+        dt = dt.astimezone(UTC)
+    return dt
