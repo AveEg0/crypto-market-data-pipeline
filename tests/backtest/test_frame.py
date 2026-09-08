@@ -8,7 +8,7 @@ from pandas import Timedelta
 from crypto_pipeline.backtest.contracts import INDEX, Column, FrameInfo, PreparedData
 from crypto_pipeline.backtest.frame import prepare_candles
 from crypto_pipeline.common.models import Candle
-from tests.conf_test import SYMBOL
+from tests.helpers import SYMBOL
 
 
 def make_sample_candle(

@@ -4,13 +4,14 @@ from decimal import Decimal
 import pandas as pd
 import pytest
 
-from crypto_pipeline.backtest.contracts import PERIODS_PER_YEAR_FOR_MINUTE_CANDLE, TradeRecord
+from crypto_pipeline.backtest.contracts import TradeRecord
 from crypto_pipeline.backtest.metrics import (
     max_drawdown,
     sharpe,
     total_return,
     win_rate,
 )
+from tests.helpers import PERIODS_PER_YEAR_FOR_MINUTE_CANDLE
 
 
 def _trade(pnl: Decimal | None) -> TradeRecord:

@@ -10,7 +10,7 @@ def prepare_candles(
 
     if not candles:
         raise ValueError("candles must not be empty")
-    if interval is None or interval < pd.Timedelta(0):
+    if interval is None or interval <= pd.Timedelta(0):
         raise ValueError("interval must be positive")
     symbol = candles[0].symbol
     for c in candles:

@@ -6,7 +6,7 @@ import pytest
 
 from crypto_pipeline.backtest.runner import run_backtest
 from crypto_pipeline.common.models import Candle
-from tests.conf_test import SYMBOL
+from tests.helpers import SYMBOL
 
 
 def _flat_candle(minute: int, price: str) -> Candle:

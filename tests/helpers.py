@@ -1,4 +1,5 @@
 SYMBOL = "BTCUSDT"
+PERIODS_PER_YEAR_FOR_MINUTE_CANDLE = 525600
 
 
 def generate_candles_1m_page(start_ms: int, count: int) -> list[list]:

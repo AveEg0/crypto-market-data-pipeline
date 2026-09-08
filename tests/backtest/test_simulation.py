@@ -7,7 +7,7 @@ import pytest
 from crypto_pipeline.backtest.frame import prepare_candles
 from crypto_pipeline.backtest.simulation import simulate
 from crypto_pipeline.common.models import Candle
-from tests.conf_test import SYMBOL
+from tests.helpers import SYMBOL
 
 
 def _candle(minute: int, o: str, h: str, low: str, c: str) -> Candle:
