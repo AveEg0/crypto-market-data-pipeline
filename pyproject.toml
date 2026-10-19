@@ -8,10 +8,13 @@ requires-python = ">=3.12"
 dependencies = [
     "aiokafka>=0.14.0",
     "alembic>=1.18.5",
+    "fastapi>=0.141.1",
     "httpx>=0.28.1",
     "pandas>=3.0.5",
-    "psycopg[binary]>=3.3.4",
+    "psycopg[binary,pool]>=3.3.4",
+    "pytest-asyncio>=1.4.0",
     "structlog>=26.1.0",
+    "uvicorn[standard]>=0.52.4",
     "websockets>=16.1.1",
 ]
 
@@ -36,3 +39,5 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["integration: requires a running database"]

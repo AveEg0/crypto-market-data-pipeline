@@ -26,6 +26,28 @@ services:
         condition: service_completed_successfully
     command: ["python", "-m", "crypto_pipeline.writer"]
 
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@crypto-db:5432/${POSTGRES_DB}
+      API_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      crypto-db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: [ "python", "-m", "crypto_pipeline.api" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\"" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+
   migrate:
     build: .
     env_file:
