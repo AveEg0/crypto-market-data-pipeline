@@ -4,7 +4,7 @@ from decimal import Decimal
 import pandas as pd
 import pytest
 
-from crypto_pipeline.backtest.runner import run_backtest
+from crypto_pipeline.backtest.runner import run_backtest_metrics
 from crypto_pipeline.common.models import Candle
 from tests.helpers import SYMBOL
 
@@ -23,7 +23,7 @@ def test_run_backtest_round_trip():
     # a losing round trip.
     candles = _candles(["100", "100", "100", "200", "200", "100", "100"])
 
-    metrics = run_backtest(
+    metrics = run_backtest_metrics(
         candles,
         pd.Timedelta(minutes=1),
         Decimal("1000"),
@@ -61,7 +61,7 @@ def test_run_backtest_round_trip():
 def test_run_backtest_no_crossover_takes_no_trades():
     candles = _candles(["100"] * 6)
 
-    metrics = run_backtest(
+    metrics = run_backtest_metrics(
         candles,
         pd.Timedelta(minutes=1),
         Decimal("1000"),

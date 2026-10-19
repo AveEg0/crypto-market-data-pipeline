@@ -46,7 +46,7 @@ def prepare_candles(
     deltas = df.index.to_series().diff().dropna()
     gap_count = int((deltas != interval).sum())
     if gap_count and not allow_gaps:
-        raise ValueError(f"{gap_count} gap(s) detected; pass allow_gaps=True to proceed")
+        raise GapError(gap_count)
     df = df.astype("float64")
     prices = dict(zip(df.index, (c.open for c in candles), strict=True))
     final_close = candles[-1].close
@@ -60,3 +60,9 @@ def prepare_candles(
     )
 
     return PreparedData(df=df, info=info, prices=prices, final_close=final_close)
+
+
+class GapError(ValueError):
+    def __init__(self, gap_count: int) -> None:
+        self.gap_count = gap_count
+        super().__init__(f"{gap_count} gap(s) detected; pass allow_gaps=True to proceed")

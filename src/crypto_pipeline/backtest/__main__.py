@@ -11,11 +11,10 @@ from crypto_pipeline.backtest.contracts import (
     BacktestMetrics,
     SweepResult,
 )
-from crypto_pipeline.backtest.runner import run_backtest
+from crypto_pipeline.backtest.runner import run_backtest_metrics
 from crypto_pipeline.backtest.sweep import run_sweep
 from crypto_pipeline.common.db import read_candles
 from crypto_pipeline.common.logging import configure_logging
-from crypto_pipeline.common.models import Candle
 from crypto_pipeline.common.parse import resolve_range
 
 
@@ -82,7 +81,7 @@ def main() -> int:
                 )
                 metrics = format_sweep(metrics)
             else:
-                metrics = run_backtest(
+                metrics = run_backtest_metrics(
                     candles=candles,
                     interval=pd.Timedelta(minutes=1),
                     initial_capital=args.initial_capital,

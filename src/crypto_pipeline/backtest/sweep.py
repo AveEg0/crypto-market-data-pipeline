@@ -10,7 +10,7 @@ from crypto_pipeline.backtest.contracts import (
     BacktestMetrics,
     SweepResult,
 )
-from crypto_pipeline.backtest.runner import run_backtest
+from crypto_pipeline.backtest.runner import run_backtest_metrics
 from crypto_pipeline.common.models import Candle
 
 
@@ -35,7 +35,7 @@ def run_sweep(
     is_candles, oos_candles = split_chronological(candles, ratio)
 
     def _run(segment: list[Candle], fast: int, slow: int) -> BacktestMetrics:
-        return run_backtest(
+        return run_backtest_metrics(
             candles=segment,
             interval=interval,
             initial_capital=initial_capital,

@@ -6,6 +6,7 @@ from crypto_pipeline.backtest.contracts import (
     FEE_DEFAULT,
     SLIPPAGE_DEFAULT,
     BacktestMetrics,
+    BacktestResult,
     Column,
 )
 from crypto_pipeline.backtest.frame import prepare_candles
@@ -32,7 +33,7 @@ def run_backtest(
     fee_rate: Decimal = FEE_DEFAULT,
     slippage: Decimal = SLIPPAGE_DEFAULT,
     allow_gaps: bool = False,
-) -> BacktestMetrics:
+) -> BacktestResult:
     prepared = prepare_candles(candles, interval, allow_gaps=allow_gaps)
 
     close = prepared.df[Column.CLOSE]
@@ -46,7 +47,7 @@ def run_backtest(
 
     periods_per_year = int(pd.Timedelta(days=365) / prepared.info.interval)
 
-    return BacktestMetrics(
+    metrics = BacktestMetrics(
         initial_capital=initial_capital,
         final_equity=result.final_cash,
         total_return=total_return(float(initial_capital), float(result.final_cash)),
@@ -59,3 +60,9 @@ def run_backtest(
         buy_and_hold_total_return=total_return(float(initial_capital), float(bh_final_equity)),
         frame_info=prepared.info,
     )
+
+    return BacktestResult(metrics=metrics, simulation=result)
+
+
+def run_backtest_metrics(*args, **kwargs) -> BacktestMetrics:
+    return run_backtest(*args, **kwargs).metrics

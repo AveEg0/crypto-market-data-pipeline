@@ -91,3 +91,9 @@ class SweepResult:
     in_sample: BacktestMetrics
     out_of_sample: BacktestMetrics
     ranked_in_sample: list[tuple[int, int, BacktestMetrics]]
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestResult:
+    metrics: BacktestMetrics
+    simulation: SimulationResult
