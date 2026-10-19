@@ -77,7 +77,6 @@ async def get_coverage(
     returned = await count_candles(conn, symbol, start, end)
     expected = _expected_for_range(start, end)
     return Coverage(
-        symbol=symbol,
         start=start,
         end=end,
         expected=expected,
@@ -139,14 +138,12 @@ async def post_backtest(
 def _coverage(candles: list[CandleOut], truncated: bool) -> Coverage | None:
     if not candles:
         return None
-    symbol = candles[0].symbol
     start = candles[0].ts
     end = candles[-1].ts
     expected = _expected_for_range(start, end)
     returned = len(candles)
 
     return Coverage(
-        symbol=symbol,
         start=start,
         end=end,
         expected=expected,
