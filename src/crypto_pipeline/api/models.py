@@ -1,11 +1,12 @@
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Annotated, Literal
 
+import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, model_validator
 
 from crypto_pipeline.api.config import (
-    INTERVALS,
     MAX_BACKTEST_CANDLES,
     MONEY_PLACES,
     SYMBOL_PATTERN,
@@ -105,7 +106,7 @@ class BacktestRequest(BaseModel):
             raise ValueError("end must be after start")
         if self.fast_window >= self.slow_window:
             raise ValueError("fast_window must be less than slow_window")
-        span = int((self.end - self.start) / INTERVALS[self.interval])
+        span = int((self.end - self.start) / INTERVALS[self.interval].delta)
         if span > MAX_BACKTEST_CANDLES:
             raise ValueError(f"range too large: {span} candles, max = {MAX_BACKTEST_CANDLES}")
         return self
@@ -115,3 +116,17 @@ class BacktestResponse(BaseModel):
     metrics: MetricsOut
     trades: list[TradeOut]
     equity_curve: list[EquityPoint] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class IntervalSpec:
+    delta: pd.Timedelta
+    sql: str
+
+
+RAW_INTERVAL = "1m"
+INTERVALS: dict[str, IntervalSpec] = {
+    "1m": IntervalSpec(pd.Timedelta(minutes=1), "1 minute"),
+    "1h": IntervalSpec(pd.Timedelta(hours=1), "1 hour"),
+}
+CandleInterval = Literal["1m", "1h"]

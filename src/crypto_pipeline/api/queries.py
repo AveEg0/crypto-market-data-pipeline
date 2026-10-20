@@ -3,7 +3,7 @@ from datetime import datetime
 from psycopg import AsyncConnection
 from psycopg.rows import class_row
 
-from crypto_pipeline.api.models import CandleOut
+from crypto_pipeline.api.models import INTERVALS, RAW_INTERVAL, CandleOut
 from crypto_pipeline.common.models import Candle
 
 
@@ -15,7 +15,12 @@ async def list_symbols(conn: AsyncConnection) -> list[str]:
 
 
 async def list_candles(
-    conn: AsyncConnection, symbol: str, start: datetime | None, end: datetime | None, limit: int
+    conn: AsyncConnection,
+    symbol: str,
+    start: datetime | None,
+    end: datetime | None,
+    limit: int,
+    interval: str = "1m",
 ) -> tuple[list[CandleOut], bool]:
     conditions = ["symbol = %s"]
     params: list[object] = [symbol]
@@ -25,15 +30,36 @@ async def list_candles(
     if end is not None:
         conditions.append("ts <= %s")
         params.append(end)
-    params.append(limit + 1)
 
-    query = (
-        "SELECT symbol, ts, open, high, low, close, volume "
-        "FROM candles_1m "
-        f"WHERE {' AND '.join(conditions)} "
-        "ORDER BY ts "
-        "LIMIT %s"
-    )
+    where = " AND ".join(conditions)
+
+    if interval == RAW_INTERVAL:
+        query = f"""
+            SELECT symbol, ts, open, high, low, close, volume
+            FROM candles_1m
+            WHERE {where}
+            ORDER BY ts
+            LIMIT %s
+        """
+    else:
+        bucket = INTERVALS[interval].sql
+        query = f"""
+            SELECT symbol,
+                   time_bucket(%s::interval, ts) AS ts,
+                   first(open, ts) AS open,
+                   max(high) AS high,
+                   min(low) AS low,
+                   last(close, ts) AS close,
+                   sum(volume) AS volume
+            FROM candles_1m
+            WHERE {where}
+            GROUP BY 1, 2
+            ORDER BY 2
+            LIMIT %s
+        """
+        params = [bucket, *params]
+
+    params.append(limit + 1)
 
     async with conn.cursor(row_factory=class_row(CandleOut)) as cursor:
         await cursor.execute(query, params)

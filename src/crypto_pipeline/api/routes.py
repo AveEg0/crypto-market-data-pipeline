@@ -7,15 +7,16 @@ from fastapi import APIRouter, HTTPException, Path, Query
 
 from crypto_pipeline.api.config import (
     BACKTEST_TIMEOUT_S,
-    CANDLE_INTERVAL,
-    INTERVALS,
     MAX_CONCURRENT_BACKTESTS,
     SYMBOL_PATTERN,
 )
 from crypto_pipeline.api.deps import ConnDep
 from crypto_pipeline.api.models import (
+    INTERVALS,
+    RAW_INTERVAL,
     BacktestRequest,
     BacktestResponse,
+    CandleInterval,
     CandleOut,
     CandlesResponse,
     Coverage,
@@ -51,16 +52,19 @@ async def get_candles(
     start: Annotated[datetime | None, Query()] = None,
     end: Annotated[datetime | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=10_000)] = 1_000,
+    interval: Annotated[CandleInterval, Query()] = "1m",
 ) -> CandlesResponse:
     if start is not None:
         start = to_utc(start)
     if end is not None:
         end = to_utc(end)
-    candles, truncated = await list_candles(conn, symbol, start, end, limit)
+    candles, truncated = await list_candles(conn, symbol, start, end, limit, interval)
     if not candles and symbol not in await list_symbols(conn):
         raise HTTPException(status_code=404, detail=f"unknown symbol {symbol}")
 
-    return CandlesResponse(symbol=symbol, candles=candles, coverage=_coverage(candles, truncated))
+    return CandlesResponse(
+        symbol=symbol, candles=candles, coverage=_coverage(candles, truncated)
+    )
 
 
 @router.get("/coverage/{symbol}")
@@ -91,7 +95,7 @@ async def post_backtest(
 ) -> BacktestResponse:
     start = to_utc(request.start)
     end = to_utc(request.end)
-    interval = INTERVALS[request.interval]
+    interval = INTERVALS[request.interval].delta
     candles = await fetch_backtest_candles(conn, request.symbol, start, end)
     if not candles:
         if request.symbol not in await list_symbols(conn):
@@ -153,4 +157,5 @@ def _coverage(candles: list[CandleOut], truncated: bool) -> Coverage | None:
 
 
 def _expected_for_range(start: datetime, end: datetime) -> int:
-    return int((end - start + CANDLE_INTERVAL) / CANDLE_INTERVAL)
+    interval = INTERVALS[RAW_INTERVAL].delta
+    return int((end - start + interval) / interval)
