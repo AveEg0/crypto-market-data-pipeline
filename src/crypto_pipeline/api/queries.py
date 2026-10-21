@@ -17,33 +17,22 @@ async def list_symbols(conn: AsyncConnection) -> list[str]:
 async def list_candles(
     conn: AsyncConnection,
     symbol: str,
-    start: datetime | None,
-    end: datetime | None,
+    start: datetime,
+    end: datetime,
     limit: int,
-    interval: str = "1m",
+    interval: str,
 ) -> tuple[list[CandleOut], bool]:
-    conditions = ["symbol = %s"]
-    params: list[object] = [symbol]
-    if start is not None:
-        conditions.append("ts >= %s")
-        params.append(start)
-    if end is not None:
-        conditions.append("ts <= %s")
-        params.append(end)
-
-    where = " AND ".join(conditions)
-
     if interval == RAW_INTERVAL:
-        query = f"""
+        query = """
             SELECT symbol, ts, open, high, low, close, volume
             FROM candles_1m
-            WHERE {where}
+            WHERE symbol = %s AND ts >= %s AND ts <= %s
             ORDER BY ts
             LIMIT %s
         """
+        params = [symbol, start, end, limit + 1]
     else:
-        bucket = INTERVALS[interval].sql
-        query = f"""
+        query = """
             SELECT symbol,
                    time_bucket(%s::interval, ts) AS ts,
                    first(open, ts) AS open,
@@ -52,14 +41,12 @@ async def list_candles(
                    last(close, ts) AS close,
                    sum(volume) AS volume
             FROM candles_1m
-            WHERE {where}
+            WHERE symbol = %s AND ts >= %s AND ts <= %s
             GROUP BY 1, 2
             ORDER BY 2
             LIMIT %s
         """
-        params = [bucket, *params]
-
-    params.append(limit + 1)
+        params = [INTERVALS[interval].sql, symbol, start, end, limit + 1]
 
     async with conn.cursor(row_factory=class_row(CandleOut)) as cursor:
         await cursor.execute(query, params)

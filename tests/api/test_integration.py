@@ -39,13 +39,29 @@ async def test_symbols_against_real_db(live_client):
 
 
 async def test_candles_against_real_db(live_client):
-    response = await live_client.get("/candles/BTCUSDT", params={"limit": 10})
-
-    assert response.status_code == 200
+    response = await live_client.get(
+        "/candles/BTCUSDT",
+        params={"start": "2026-10-01T00:00:00Z", "end": "2026-10-02T00:00:00Z", "limit": 10},
+    )
     body = response.json()
     assert len(body["candles"]) == 10
     assert body["coverage"]["truncated"] is True
-    assert isinstance(body["candles"][0]["close"], str)
+    assert body["coverage"]["expected"] == 1441
+
+
+async def test_candles_hourly_against_real_db(live_client):
+    response = await live_client.get(
+        "/candles/BTCUSDT",
+        params={
+            "start": "2026-10-01T00:00:00Z",
+            "end": "2026-10-02T00:00:00Z",
+            "interval": "1h",
+            "limit": 100,
+        },
+    )
+    body = response.json()
+    assert body["coverage"]["expected"] == 25
+    assert body["candles"][0]["ts"] == "2026-10-01T00:00:00Z"
 
 
 async def test_backtest_against_real_db(live_client):

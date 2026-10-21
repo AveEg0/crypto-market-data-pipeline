@@ -3,6 +3,7 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Path, Query
 
 from crypto_pipeline.api.config import (
@@ -17,7 +18,6 @@ from crypto_pipeline.api.models import (
     BacktestRequest,
     BacktestResponse,
     CandleInterval,
-    CandleOut,
     CandlesResponse,
     Coverage,
     EquityPoint,
@@ -49,21 +49,30 @@ async def get_symbols(conn: ConnDep) -> SymbolsResponse:
 async def get_candles(
     conn: ConnDep,
     symbol: Annotated[str, Path(pattern=SYMBOL_PATTERN)],
-    start: Annotated[datetime | None, Query()] = None,
-    end: Annotated[datetime | None, Query()] = None,
+    start: Annotated[datetime, Query()],
+    end: Annotated[datetime, Query()],
     limit: Annotated[int, Query(ge=1, le=10_000)] = 1_000,
     interval: Annotated[CandleInterval, Query()] = "1m",
 ) -> CandlesResponse:
-    if start is not None:
-        start = to_utc(start)
-    if end is not None:
-        end = to_utc(end)
+    start = to_utc(start)
+    end = to_utc(end)
+    if start > end:
+        raise HTTPException(status_code=422, detail=f"start {start} > end {end}")
+
     candles, truncated = await list_candles(conn, symbol, start, end, limit, interval)
     if not candles and symbol not in await list_symbols(conn):
         raise HTTPException(status_code=404, detail=f"unknown symbol {symbol}")
 
     return CandlesResponse(
-        symbol=symbol, candles=candles, coverage=_coverage(candles, truncated)
+        symbol=symbol,
+        candles=candles,
+        coverage=Coverage(
+            start=start,
+            end=end,
+            expected=_expected_for_range(start, end, INTERVALS[interval].delta),
+            returned=len(candles),
+            truncated=truncated,
+        ),
     )
 
 
@@ -79,7 +88,7 @@ async def get_coverage(
     if start > end:
         raise HTTPException(status_code=422, detail=f"start {start} > end {end}")
     returned = await count_candles(conn, symbol, start, end)
-    expected = _expected_for_range(start, end)
+    expected = _expected_for_range(start, end, INTERVALS[RAW_INTERVAL].delta)
     return Coverage(
         start=start,
         end=end,
@@ -139,23 +148,5 @@ async def post_backtest(
     return BacktestResponse(metrics=metrics_out, trades=trades, equity_curve=curve)
 
 
-def _coverage(candles: list[CandleOut], truncated: bool) -> Coverage | None:
-    if not candles:
-        return None
-    start = candles[0].ts
-    end = candles[-1].ts
-    expected = _expected_for_range(start, end)
-    returned = len(candles)
-
-    return Coverage(
-        start=start,
-        end=end,
-        expected=expected,
-        returned=returned,
-        truncated=truncated,
-    )
-
-
-def _expected_for_range(start: datetime, end: datetime) -> int:
-    interval = INTERVALS[RAW_INTERVAL].delta
+def _expected_for_range(start: datetime, end: datetime, interval: pd.Timedelta) -> int:
     return int((end - start + interval) / interval)
