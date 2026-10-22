@@ -48,6 +48,25 @@ services:
       retries: 3
 
 
+  dashboard:
+    build: .
+    env_file:
+      - .env
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "127.0.0.1:8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    command:
+      - streamlit
+      - run
+      - src/crypto_pipeline/dashboard/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+
   migrate:
     build: .
     env_file:
