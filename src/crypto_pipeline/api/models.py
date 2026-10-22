@@ -66,6 +66,8 @@ class MetricsOut(BaseModel):
     sharpe: float | None
     win_rate: float | None
     trade_count: int
+    fast_window: int
+    slow_window: int
     fees_paid: MoneyOut
     buy_and_hold_final_equity: MoneyOut
     buy_and_hold_total_return: float

@@ -138,7 +138,14 @@ async def post_backtest(
     frame_info_out = FrameInfoOut.model_validate(
         {**asdict(frame_info), "interval": request.interval}
     )
-    metrics_out = MetricsOut.model_validate({**asdict(metrics), "frame_info": frame_info_out})
+    metrics_out = MetricsOut.model_validate(
+        {
+            **asdict(metrics),
+            "frame_info": frame_info_out,
+            "fast_window": request.fast_window,
+            "slow_window": request.slow_window,
+        }
+    )
     trades = [TradeOut.model_validate(t) for t in simulation.trades]
     curve = None
     if request.include_equity_curve:
